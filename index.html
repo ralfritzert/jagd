@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1C3426">
+<meta name="robots" content="noindex, nofollow">
+<title>Schweisweilerer Jäger</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Revier">
+<style>
+  html, body { margin: 0; height: 100%; background: #1C3426; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; border: 0; background: #F4F0E6; }
+  .hinweis { font: 16px/1.5 system-ui, -apple-system, sans-serif; color: #F4F0E6; padding: 32px 20px; max-width: 32rem; margin: 0 auto; }
+  .hinweis img { width: 96px; height: 96px; border-radius: 50%; display: block; margin-bottom: 16px; }
+  .hinweis b { color: #C9A55C; }
+</style>
+</head>
+<body>
+<script>
+  // Startseite ohne Google-Hinweisleiste: bettet die Jagdmanager-Web-App ein und reicht den persönlichen Schlüssel weiter.
+  // Der Schlüssel steht nur in der Adresse (wie bisher beim Google-Link) – er wird hier nicht gespeichert.
+  // BEREITSTELLUNG = ID der Apps-Script-Web-App (öffentlich, steht in jedem Link). Für den Handy-Test: Test-Bereitstellung 8.5.7.
+  var BEREITSTELLUNG = 'AKfycbyiI4Upwqyl2-_3gT4pkBeqhhfPgqjSu0N8ow77DVYVYKFJ40uqg8PZUAoWggPGweAD';
+  var k = new URLSearchParams(location.search).get('k') || '';
+  if (/^[A-Za-z0-9]{16,64}$/.test(k)) {
+    var f = document.createElement('iframe');
+    f.title = 'Schweisweilerer Jäger';
+    f.allow = 'clipboard-write; geolocation';
+    f.src = 'https://script.google.com/macros/s/' + BEREITSTELLUNG + '/exec?k=' + encodeURIComponent(k);
+    document.body.appendChild(f);
+  } else {
+    document.body.innerHTML = '<div class="hinweis"><img src="icon-192.png" alt="">' +
+      '<b>Schweisweilerer Jäger</b><br>Bitte den persönlichen Link aus der WhatsApp-Nachricht öffnen. ' +
+      'Ohne ihn geht es nicht – beim Revierinhaber nachfragen.</div>';
+  }
+</script>
+</body>
+</html>
