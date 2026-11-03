@@ -16,6 +16,13 @@
   .hinweis { font: 16px/1.5 system-ui, -apple-system, sans-serif; color: #F4F0E6; padding: 32px 20px; max-width: 32rem; margin: 0 auto; }
   .hinweis img { width: 96px; height: 96px; border-radius: 50%; display: block; margin-bottom: 16px; }
   .hinweis b { color: #C9A55C; }
+  .hinweis form { margin-top: 24px; }
+  .hinweis label { display: block; margin-bottom: 8px; }
+  .hinweis input { width: 100%; box-sizing: border-box; font: 16px system-ui, -apple-system, sans-serif; padding: 12px;
+    border: 1px solid #C9A55C; border-radius: 8px; background: #F4F0E6; color: #1E2420; }
+  .hinweis button { margin-top: 12px; width: 100%; font: 600 16px system-ui, -apple-system, sans-serif; padding: 12px;
+    border: 0; border-radius: 8px; background: #C9A55C; color: #1C3426; }
+  .hinweis .fehler { color: #F2B8A0; margin-top: 8px; min-height: 1.5em; }
 </style>
 </head>
 <body>
@@ -33,8 +40,19 @@
     document.body.appendChild(f);
   } else {
     document.body.innerHTML = '<div class="hinweis"><img src="icon-192.png" alt="">' +
-      '<b>Schweisweilerer Jäger</b><br>Bitte den persönlichen Link aus der WhatsApp-Nachricht öffnen. ' +
-      'Ohne ihn geht es nicht – beim Revierinhaber nachfragen.</div>';
+      '<b>Schweisweilerer Jäger</b><br>Bitte den persönlichen Link aus der WhatsApp-Nachricht öffnen.' +
+      '<form id="form"><label for="link">Oder den bisherigen persönlichen Link (bzw. nur den Schlüssel) hier einfügen:</label>' +
+      '<input id="link" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/…?k=…">' +
+      '<button type="submit">Öffnen</button><div class="fehler" id="fehler"></div></form>' +
+      'Ohne Link geht es nicht – beim Revierinhaber nachfragen.</div>';
+    // Alten Google-Link oder reinen Schlüssel annehmen und auf die eigene Adresse umleiten (danach als Lesezeichen speichern)
+    document.getElementById('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var t = document.getElementById('link').value.trim();
+      var m = t.match(/[?&]k=([A-Za-z0-9]{16,64})/) || t.match(/^([A-Za-z0-9]{16,64})$/);
+      if (!m) { document.getElementById('fehler').textContent = 'Das ist kein gültiger persönlicher Link.'; return; }
+      location.href = location.pathname + '?k=' + m[1];
+    });
   }
 </script>
 </body>
