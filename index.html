@@ -7,13 +7,18 @@
 <meta name="theme-color" content="#1C3426">
 <meta name="robots" content="noindex, nofollow">
 <title>Schweisweilerer Jäger</title>
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Revier">
 <style>
   html, body { margin: 0; height: 100%; background: #1C3426; }
   iframe { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; border: 0; background: #F4F0E6; }
-  .hinweis { font: 16px/1.5 system-ui, -apple-system, sans-serif; color: #F4F0E6; padding: 32px 20px; max-width: 32rem; margin: 0 auto; }
+  .hinweis { font: 16px/1.5 system-ui, -apple-system, sans-serif; color: #F4F0E6; max-width: 32rem; margin: 0 auto;
+    padding: calc(32px + env(safe-area-inset-top)) 20px 32px; }
   .hinweis img { width: 96px; height: 96px; border-radius: 50%; display: block; margin-bottom: 16px; }
   .hinweis b { color: #C9A55C; }
   .hinweis form { margin-top: 24px; }
@@ -27,12 +32,31 @@
 </head>
 <body>
 <script>
-  // Startseite ohne Google-Hinweisleiste: bettet die Jagdmanager-Web-App ein und reicht den persönlichen Schlüssel weiter.
-  // Der Schlüssel steht nur in der Adresse (wie bisher beim Google-Link) – er wird hier nicht gespeichert.
-  // BEREITSTELLUNG = ID der Apps-Script-Web-App (öffentlich, steht in jedem Link). Für den Handy-Test: Test-Bereitstellung 8.5.7.
+  // Startseite / installierbare App (PWA): bettet die Jagdmanager-Web-App ein – ohne Google-Hinweisleiste.
+  // Der persönliche Schlüssel kommt über ?k= und wird zusätzlich auf diesem Gerät gemerkt,
+  // damit die installierte App auch ohne ?k= startet. ?k=… in der Adresse hat immer Vorrang (neuer Link ersetzt alten).
+  // BEREITSTELLUNG = ID der Apps-Script-Web-App (öffentlich, steht in jedem Link).
   var BEREITSTELLUNG = 'AKfycbyiI4Upwqyl2-_3gT4pkBeqhhfPgqjSu0N8ow77DVYVYKFJ40uqg8PZUAoWggPGweAD';
-  var k = new URLSearchParams(location.search).get('k') || '';
-  if (/^[A-Za-z0-9]{16,64}$/.test(k)) {
+  var GUELTIG = /^[A-Za-z0-9]{16,64}$/;
+
+  function gemerkt(neu) {
+    try {
+      if (neu === null) localStorage.removeItem('jagd-k');
+      else if (neu) localStorage.setItem('jagd-k', neu);
+      return localStorage.getItem('jagd-k') || '';
+    } catch (e) { return neu || ''; }
+  }
+
+  var param = new URLSearchParams(location.search);
+  if (param.has('abmelden')) gemerkt(null);
+  var k = param.get('k') || '';
+  if (GUELTIG.test(k)) gemerkt(k); else k = gemerkt();
+
+  if (!navigator.onLine) {
+    document.body.innerHTML = '<div class="hinweis"><img src="icon-192.png" alt=""><b>Kein Netz</b><br>' +
+      'Die Revier-App braucht Empfang. Bitte später erneut öffnen.</div>';
+    window.addEventListener('online', function () { location.reload(); });
+  } else if (GUELTIG.test(k)) {
     var f = document.createElement('iframe');
     f.title = 'Schweisweilerer Jäger';
     f.allow = 'clipboard-write; geolocation';
@@ -45,7 +69,7 @@
       '<input id="link" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/…?k=…">' +
       '<button type="submit">Öffnen</button><div class="fehler" id="fehler"></div></form>' +
       'Ohne Link geht es nicht – beim Revierinhaber nachfragen.</div>';
-    // Alten Google-Link oder reinen Schlüssel annehmen und auf die eigene Adresse umleiten (danach als Lesezeichen speichern)
+    // Alten Google-Link oder reinen Schlüssel annehmen und auf die eigene Adresse umleiten
     document.getElementById('form').addEventListener('submit', function (e) {
       e.preventDefault();
       var t = document.getElementById('link').value.trim();
@@ -53,6 +77,10 @@
       if (!m) { document.getElementById('fehler').textContent = 'Das ist kein gültiger persönlicher Link.'; return; }
       location.href = location.pathname + '?k=' + m[1];
     });
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 </script>
 </body>
