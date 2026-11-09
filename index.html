@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#1C3426">
 <meta name="robots" content="noindex, nofollow">
 <title>Schweisweilerer Jäger</title>
+<link rel="preconnect" href="https://script.google.com">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -28,6 +29,17 @@
   .hinweis button { margin-top: 12px; width: 100%; font: 600 16px system-ui, -apple-system, sans-serif; padding: 12px;
     border: 0; border-radius: 8px; background: #C9A55C; color: #1C3426; }
   .hinweis .fehler { color: #F2B8A0; margin-top: 8px; min-height: 1.5em; }
+  /* Ladebild: sofort sichtbar, bis die App bei Google geladen ist */
+  .lade { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    padding: 24px; background: #1C3426; text-align: center; transition: opacity .2s ease-out; }
+  .lade.weg { opacity: 0; pointer-events: none; }
+  .lade img { width: 136px; height: 136px; border-radius: 50%; }
+  .lade h1 { margin: 0; font: 700 20px/1.2 Georgia, 'Times New Roman', serif; letter-spacing: .08em; text-transform: uppercase; color: #C9A55C; }
+  .lade .balken { width: 120px; height: 3px; border-radius: 2px; overflow: hidden; background: rgba(201,165,92,.25); }
+  .lade .balken i { display: block; width: 40%; height: 100%; background: #C9A55C; animation: lauf 1.2s ease-in-out infinite; }
+  .lade p { margin: 0; min-height: 1.5em; font: 15px/1.5 system-ui, -apple-system, sans-serif; color: rgba(244,240,230,.82); }
+  @keyframes lauf { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+  @media (prefers-reduced-motion: reduce) { .lade { transition: none; } .lade .balken i { animation: none; width: 100%; } }
 </style>
 </head>
 <body>
@@ -57,7 +69,25 @@
       'Die Revier-App braucht Empfang. Bitte später erneut öffnen.</div>';
     window.addEventListener('online', function () { location.reload(); });
   } else if (GUELTIG.test(k)) {
+    // Ladebild zuerst: Google braucht einige Sekunden, bis die App antwortet
+    var lade = document.createElement('div');
+    lade.className = 'lade';
+    lade.setAttribute('role', 'status');
+    lade.innerHTML = '<img src="icon-192.png" alt=""><h1>Schweisweilerer Jäger</h1><div class="balken"><i></i></div><p id="ladetext">Revier wird geladen …</p>';
+    document.body.appendChild(lade);
+    var ladeWeg = function () {
+      if (!lade) return;
+      var el = lade; lade = null;
+      clearTimeout(langsam); clearTimeout(spaetestens);
+      el.classList.add('weg');
+      setTimeout(function () { el.remove(); }, 250);
+    };
+    var langsam = setTimeout(function () { document.getElementById('ladetext').textContent = 'Google braucht gerade etwas länger …'; }, 10000);
+    var spaetestens = setTimeout(ladeWeg, 25000);
+    // Die App meldet sich, sobald sie etwas zeigt; der Rahmen-Load ist nur die Absicherung (z. B. Fehlerseite von Google)
+    window.addEventListener('message', function (e) { if (e.data === 'jagd-bereit') ladeWeg(); });
     var f = document.createElement('iframe');
+    f.addEventListener('load', function () { setTimeout(ladeWeg, 2500); });
     f.title = 'Schweisweilerer Jäger';
     f.allow = 'clipboard-write; geolocation';
     f.src = 'https://script.google.com/macros/s/' + BEREITSTELLUNG + '/exec?k=' + encodeURIComponent(k);
