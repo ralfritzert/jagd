@@ -1,6 +1,6 @@
 // Service Worker: macht die Startseite installierbar und hält sie für den Start ohne Netz bereit.
 // Die Revier-Daten kommen weiter live von Google – offline zeigt die Startseite nur einen Hinweis.
-var CACHE = 'jagd-v2';
+var CACHE = 'jagd-v3';
 var DATEIEN = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
