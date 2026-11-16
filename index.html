@@ -47,33 +47,73 @@
   // Startseite / installierbare App (PWA): bettet die Jagdmanager-Web-App ein – ohne Google-Hinweisleiste.
   // Der persönliche Schlüssel kommt über ?k= und wird zusätzlich auf diesem Gerät gemerkt,
   // damit die installierte App auch ohne ?k= startet. ?k=… in der Adresse hat immer Vorrang (neuer Link ersetzt alten).
-  // BEREITSTELLUNG = ID der Apps-Script-Web-App (öffentlich, steht in jedem Link).
-  var BEREITSTELLUNG = 'AKfycbxAZKhoOLhFrNpnasU_0i3qGhHkFNb-K5d7jD3hNBfEnnBURrJN5FEfHQZU_ZgPEYmc';   // Live-Bereitstellung
-  var GUELTIG = /^[A-Za-z0-9]{16,64}$/;
+  // Phase 3 (16.11.2026): mehrere Reviere über dieselbe Seite. ?app=<Bereitstellungs-ID> wählt das Revier;
+  // ohne ?app= gilt wie bisher die Schweisweilerer Jäger. Eingebettet wird NUR, was in REVIERE steht – sonst könnte
+  // jede fremde Apps-Script-Seite unter dieser Adresse ohne Google-Hinweis erscheinen.
+  var STANDARD = 'AKfycbxAZKhoOLhFrNpnasU_0i3qGhHkFNb-K5d7jD3hNBfEnnBURrJN5FEfHQZU_ZgPEYmc';   // Schweisweilerer Jäger (Live)
+  var REVIERE = {};
+  REVIERE[STANDARD] = { name: 'Schweisweilerer Jäger', kurz: 'Revier', logo: 'icon-192.png' };
+  // Weitere Reviere: Zeile ergänzen (ID aus „Bereitstellungen verwalten“), z. B.
+  // REVIERE['AKfyc…'] = { name: 'Revier Am Hang', kurz: 'Am Hang', logo: 'revier-192.png' };
+  var GUELTIG = /^[A-Za-z0-9]{16,64}$/, APP_ID = /^AKfyc[\w-]{20,}$/;
 
-  function gemerkt(neu) {
+  function merke(name, neu) {
     try {
-      if (neu === null) localStorage.removeItem('jagd-k');
-      else if (neu) localStorage.setItem('jagd-k', neu);
-      return localStorage.getItem('jagd-k') || '';
+      if (neu === null) localStorage.removeItem(name);
+      else if (neu) localStorage.setItem(name, neu);
+      return localStorage.getItem(name) || '';
     } catch (e) { return neu || ''; }
   }
 
   var param = new URLSearchParams(location.search);
-  if (param.has('abmelden')) gemerkt(null);
-  var k = param.get('k') || '';
-  if (GUELTIG.test(k)) gemerkt(k); else k = gemerkt();
+  if (param.has('abmelden')) { merke('jagd-k', null); merke('jagd-app', null); }
+  var k = param.get('k') || '', app = param.get('app') || '';
+  if (GUELTIG.test(k)) {
+    // neuer Link: Schlüssel UND Revier merken (Link ohne ?app= = Standard-Revier, wie alle bisherigen Links)
+    merke('jagd-k', k); merke('jagd-app', APP_ID.test(app) ? app : STANDARD);
+  } else {
+    k = merke('jagd-k');
+  }
+  app = APP_ID.test(app) ? app : (merke('jagd-app') || STANDARD);
+  var revier = REVIERE[app];
+
+  // Name, Symbol und „App-Name“ beim Installieren je Revier (Standard bleibt wie bisher)
+  if (revier && app !== STANDARD) {
+    document.title = revier.name;
+    var t = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (t) t.content = revier.kurz || revier.name;
+    var ic = document.querySelector('link[rel="icon"]'); if (ic) ic.href = revier.logo;
+    var at = document.querySelector('link[rel="apple-touch-icon"]'); if (at) at.href = 'revier-touch.png';
+    try {
+      var basis = location.href.split('?')[0].replace(/[^\/]*$/, '');
+      var man = { name: revier.name, short_name: revier.kurz || revier.name, lang: 'de', display: 'standalone',
+        start_url: basis + '?app=' + app, scope: basis, background_color: '#1C3426', theme_color: '#1C3426',
+        icons: [{ src: basis + 'revier-192.png', sizes: '192x192', type: 'image/png' }, { src: basis + 'revier-512.png', sizes: '512x512', type: 'image/png' }] };
+      document.querySelector('link[rel="manifest"]').href = URL.createObjectURL(new Blob([JSON.stringify(man)], { type: 'application/manifest+json' }));
+    } catch (e) {}
+  }
+  var NAME = revier ? revier.name : 'Revier-App', LOGO = revier ? revier.logo : 'revier-192.png';
+  if (!revier) document.title = 'Revier-App';
+  var GOOGLE = 'https://script.google.com/macros/s/' + app + '/exec';
 
   if (!navigator.onLine) {
-    document.body.innerHTML = '<div class="hinweis"><img src="icon-192.png" alt=""><b>Kein Netz</b><br>' +
+    document.body.innerHTML = '<div class="hinweis"><img src="' + LOGO + '" alt=""><b>Kein Netz</b><br>' +
       'Die Revier-App braucht Empfang. Bitte später erneut öffnen.</div>';
     window.addEventListener('online', function () { location.reload(); });
+  } else if (!revier) {
+    // Unbekanntes Revier: nicht einbetten, aber den direkten Google-Link anbieten (dort mit Google-Hinweis)
+    document.body.innerHTML = '<div class="hinweis"><img src="revier-192.png" alt=""><b>Revier hier nicht freigeschaltet</b><br>' +
+      'Dieses Revier läuft (noch) nicht über diese Startseite. Du kannst die App direkt bei Google öffnen:' +
+      (GUELTIG.test(k) ? '<form><button type="button" id="direkt">Direkt öffnen</button></form>' : '') +
+      '<p style="margin-top:16px">Pächter: bitte bei Ralf melden, damit das Revier hier eingetragen wird.</p></div>';
+    var d = document.getElementById('direkt');
+    if (d) d.addEventListener('click', function () { location.href = GOOGLE + '?k=' + encodeURIComponent(k); });
   } else if (GUELTIG.test(k)) {
     // Ladebild zuerst: Google braucht einige Sekunden, bis die App antwortet
     var lade = document.createElement('div');
     lade.className = 'lade';
     lade.setAttribute('role', 'status');
-    lade.innerHTML = '<img src="icon-192.png" alt=""><h1>Schweisweilerer Jäger</h1><div class="balken"><i></i></div><p id="ladetext">Revier wird geladen …</p>';
+    lade.innerHTML = '<img src="' + LOGO + '" alt=""><h1></h1><div class="balken"><i></i></div><p id="ladetext">Revier wird geladen …</p>';
+    lade.querySelector('h1').textContent = NAME;
     document.body.appendChild(lade);
     var ladeWeg = function () {
       if (!lade) return;
@@ -88,24 +128,26 @@
     window.addEventListener('message', function (e) { if (e.data === 'jagd-bereit') ladeWeg(); });
     var f = document.createElement('iframe');
     f.addEventListener('load', function () { setTimeout(ladeWeg, 2500); });
-    f.title = 'Schweisweilerer Jäger';
+    f.title = NAME;
     f.allow = 'clipboard-write; geolocation';
-    f.src = 'https://script.google.com/macros/s/' + BEREITSTELLUNG + '/exec?k=' + encodeURIComponent(k);
+    f.src = GOOGLE + '?k=' + encodeURIComponent(k);
     document.body.appendChild(f);
   } else {
-    document.body.innerHTML = '<div class="hinweis"><img src="icon-192.png" alt="">' +
-      '<b>Schweisweilerer Jäger</b><br>Bitte den persönlichen Link aus der WhatsApp-Nachricht öffnen.' +
+    document.body.innerHTML = '<div class="hinweis"><img src="' + LOGO + '" alt=""><b></b><br>Bitte den persönlichen Link aus der WhatsApp-Nachricht öffnen.' +
       '<form id="form"><label for="link">Oder den bisherigen persönlichen Link (bzw. nur den Schlüssel) hier einfügen:</label>' +
-      '<input id="link" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/…?k=…">' +
+      '<input id="link" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…?k=…">' +
       '<button type="submit">Öffnen</button><div class="fehler" id="fehler"></div></form>' +
       'Ohne Link geht es nicht – beim Revierinhaber nachfragen.</div>';
-    // Alten Google-Link oder reinen Schlüssel annehmen und auf die eigene Adresse umleiten
+    document.querySelector('.hinweis b').textContent = NAME;
+    // Alten Google-Link, Startseiten-Link oder reinen Schlüssel annehmen und auf die eigene Adresse umleiten
     document.getElementById('form').addEventListener('submit', function (e) {
       e.preventDefault();
       var t = document.getElementById('link').value.trim();
       var m = t.match(/[?&]k=([A-Za-z0-9]{16,64})/) || t.match(/^([A-Za-z0-9]{16,64})$/);
       if (!m) { document.getElementById('fehler').textContent = 'Das ist kein gültiger persönlicher Link.'; return; }
-      location.href = location.pathname + '?k=' + m[1];
+      var a = t.match(/[?&]app=(AKfyc[\w-]{20,})/) || t.match(/\/s\/(AKfyc[\w-]{20,})\/exec/);
+      var ziel = a ? a[1] : app;
+      location.href = location.pathname + (ziel !== STANDARD ? '?app=' + ziel + '&k=' : '?k=') + m[1];
     });
   }
 
